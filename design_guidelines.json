@@ -1,0 +1,160 @@
+{
+  "project_overview": {
+    "brand_name": "KARUMBU",
+    "theme": "dark",
+    "description": "Premium artisanal South Indian sugarcane panakam e-commerce marketing site.",
+    "emotional_tone": "Earthy, Heritage, Premium, Rooted, Invigorating"
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Cormorant Garamond, serif",
+      "weights": ["300", "400", "600"],
+      "usage": "H1-H4, editorial callouts, story chapters"
+    },
+    "body": {
+      "font_family": "Outfit, sans-serif",
+      "weights": ["300", "400"],
+      "usage": "Paragraphs, technical details, navigation, buttons"
+    },
+    "accent": {
+      "font_family": "Outfit, sans-serif",
+      "weights": ["200"],
+      "usage": "Overlines, labels, tracking-widest uppercase text"
+    },
+    "rules": [
+      "H1 must be fluid clamp(3rem, 8vw, 5rem) with leading-none and tracking-tighter.",
+      "Overlines must be uppercase, text-xs or text-sm, tracking-[0.2em].",
+      "No Inter or generic fonts for headings. Use Cormorant Garamond for an editorial feel."
+    ]
+  },
+  "colors": {
+    "archetype": "Organic & Earthy",
+    "palette": {
+      "background": "#0A100C",
+      "foreground": "#F4EBE1",
+      "primary": "#C86A23",
+      "primary_foreground": "#FFFFFF",
+      "secondary": "#1C2F21",
+      "secondary_foreground": "#F4EBE1",
+      "accent": "#A35117",
+      "muted": "#121E15",
+      "muted_foreground": "#939E96",
+      "border": "#213827",
+      "glass": "rgba(10, 16, 12, 0.6)"
+    },
+    "rules": [
+      "No pure black (#000000) or pure white. Use tinted dark greens (#0A100C) for backgrounds.",
+      "Avoid large solid areas of bright orange; use jaggery amber (#C86A23) for accents, buttons, and text highlights.",
+      "Ensure minimum 4.5:1 contrast for all readable text.",
+      "Do NOT use teal green or teal blue."
+    ]
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous Spacing, Artful Asymmetry",
+    "grid_modes": {
+      "marketing": "Mode A: The Tetris Grid (gap-8 to gap-12, asymmetrical spans).",
+      "products": "Mode A variant with 1px borders and heavy padding."
+    },
+    "rules": [
+      "Use p-12, p-20, or p-32 for section padding.",
+      "Containers with borders must have internal padding (p-8 minimum).",
+      "Never center everything; create tension with left-aligned large blocks balanced by negative space.",
+      "Ensure direct children are used in grid layouts."
+    ]
+  },
+  "surfaces_and_borders": {
+    "strategy": "Glassmorphism & Solid Earth",
+    "header": "Crystal Glass: backdrop-blur-xl bg-[#0A100C]/70 border-b border-[#213827].",
+    "cards": "Solid flat background (muted) or 1px subtle border (#213827) with no shadow.",
+    "rules": [
+      "No transparent dropdowns or overlays where content overlaps. The header must have a backdrop blur.",
+      "Hover states should slightly lift (-translate-y-1) and brighten borders/text.",
+      "Buttons should be sharp rectangular or slight pill-shape."
+    ]
+  },
+  "motion_and_interactions": {
+    "libraries": ["framer-motion", "lenis", "react-fast-marquee"],
+    "scroll": "MANDATORY: Use lenis for smooth momentum scrolling.",
+    "reveals": "Line-by-line masked text reveals for H1 and story manifesto using framer-motion.",
+    "hover": "Buttons and links must explicitly set hover:text-color and hover:bg-color.",
+    "marquee": "Slow, organic editorial marquee (Cormorant Garamond, pale background, dark text, gap-24)."
+  },
+  "3d_strategy": {
+    "library": "@react-three/fiber, @react-three/drei",
+    "scene": "Sugarcane field abstract scene with a central product glass/bottle.",
+    "implementation": [
+      "Use <Canvas> with <Environment preset='sunset'> for warm realistic lighting mimicking dawn/dusk.",
+      "Float the main product representation using <Float>.",
+      "Create stylized sugarcane stalks in the background (using simple Cylinder/Box geometries with greenish materials) to mimic a field without needing complex custom models.",
+      "Use a transparent background (rgba(0,0,0,0)) so the 3D canvas blends with the dark UI underneath.",
+      "Wrap in <Suspense> with an aesthetic text-based fallback loader."
+    ]
+  },
+  "page_blueprints": {
+    "home": {
+      "hero": "3D Scene full screen (R3F sugarcane field + glass). Kinetic masked headline overlapping. Lenis scroll setup.",
+      "marquee": "Editorial ribbon dividing hero from content ('100% Pure Cane • Handcrafted Jaggery • South Indian Heritage').",
+      "story_preview": "Bento layout with jaggery making image, brief manifesto snippet, and 'Read Story' link.",
+      "product_spotlight": "Large image of copper pour, 1px border cards showcasing 2-3 panakam variants."
+    },
+    "story": {
+      "hero": "Large typography driven hero, minimal imagery, heavy text reveal.",
+      "manifesto": "Numbered chapters (01, 02, 03) flowing asymmetrically. Alternating text blocks and imagery (Sugarcane field, traditional craft)."
+    },
+    "products": {
+      "layout": "Grid of 1px border cards. E-commerce focused but artful. 2 or 3 column bento grid.",
+      "card_design": "Minimalist, flat muted bg, high contrast 'Add to Order' button."
+    },
+    "contact": {
+      "layout": "2-column layout. Left: Large atmospheric image (jaggery liquid). Right: Enquiry form.",
+      "form": "Shadcn based. Fields for Name, Phone, Quantity, Message. Styled with dark borders and earthy focus rings. Submit saves to FastAPI/MongoDB backend."
+    }
+  },
+  "components": {
+    "required_shadcn": ["button", "input", "textarea", "form", "select", "dialog"],
+    "styling": "Override Shadcn defaults. Remove generic gray borders; use #213827. Ensure all JS files are .js (not .tsx)."
+  },
+  "assets": {
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1775619427924-16ff07cf2f2e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHwyfHxzdWdhcmNhbmUlMjBmaWVsZCUyMG1vcm5pbmd8ZW58MHx8fHwxNzg3MTk1MTQ0fDA&ixlib=rb-4.1.0&q=85",
+        "category": "background/story",
+        "description": "Tall green sugarcane field under a clear blue sky. Use for story section background or wide banners."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1612846213933-916a1f56d859?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHxjb3BwZXIlMjBnbGFzcyUyMHRyYWRpdGlvbmFsJTIwSW5kaWFuJTIwZHJpbmt8ZW58MHx8fHwxNzg3MTk1MTQ0fDA&ixlib=rb-4.1.0&q=85",
+        "category": "product_spotlight",
+        "description": "Copper kettle pouring traditional Indian drink. Ideal for product presentation."
+      },
+      {
+        "url": "https://images.pexels.com/photos/12741759/pexels-photo-12741759.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "contact/hero_accent",
+        "description": "Crystal glass filled with amber-colored liquid. Great for atmospheric shots or contact form side image."
+      },
+      {
+        "url": "https://images.pexels.com/photos/11952642/pexels-photo-11952642.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "story_chapter",
+        "description": "Man creating jaggery outdoors. Perfect for heritage and craftsmanship storytelling."
+      }
+    ],
+    "icons": "lucide-react (default choice for clean icons)"
+  },
+  "universal_guidelines_for_main_agent": [
+    "Do not use generic centered layouts or simplistic gradients. Create artful asymmetry.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) where appropriate, avoiding fully transparent backgrounds behind text.",
+    "Do not apply universal transitions (`transition: all`); add transitions for specific interactive elements.",
+    "Do not center align the app container (`.App { text-align: center; }`).",
+    "Never use AI assistant Emoji characters.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects.",
+    "Use 2-3x more spacing than feels comfortable (e.g. p-16, p-24).",
+    "All interactive elements MUST include a `data-testid` attribute (e.g., data-testid='submit-order-button').",
+    "Use 'sonner' for toasts.",
+    "Use Javascript (.jsx/.js) files exclusively for React components, no Typescript (.tsx/.ts)."
+  ],
+  "accessibility": {
+    "contrast": "Ensure minimum 4.5:1 for body text. Use APCA contrast principles.",
+    "motion": "Respect prefers-reduced-motion media query.",
+    "focus": "High contrast focus rings required on all form inputs and interactive elements."
+  }
+}
