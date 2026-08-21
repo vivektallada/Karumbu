@@ -9,6 +9,7 @@ import Home from "@/pages/Home";
 import Story from "@/pages/Story";
 import Products from "@/pages/Products";
 import Contact from "@/pages/Contact";
+import Account from "@/pages/Account";
 import AdminLogin from "@/pages/AdminLogin";
 import Admin from "@/pages/Admin";
 
@@ -46,6 +47,7 @@ function App() {
             <Route path="/story" element={<Story />} />
             <Route path="/products" element={<Products />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/account" element={<Account />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>

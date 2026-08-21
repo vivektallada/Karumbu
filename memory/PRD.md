@@ -65,6 +65,13 @@ User choices: full multi-page website (home, story, products, contact); 3D sugar
 - Paid orders show a green "Paid ₹X" badge in the admin enquiries board.
 - KEYS PENDING: RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in backend/.env are empty placeholders; endpoints return friendly 503 and the UI shows "payments being set up" toast until the user adds keys from Razorpay Dashboard → Settings → API Keys.
 
+## Implemented (2026-08-21, round 7)
+- Customer email/password accounts: POST /api/auth/customer/register (duplicate → 409), login, GET /api/auth/customer/me, GET /api/my/orders. JWT type="customer", 7-day expiry, bcrypt, customers collection with unique email index. Separate from admin auth (db.users).
+- /account page: login/register toggle, order history with status + paid badges, sign out. Navbar "Account" link. Token in localStorage (karumbu_customer_token), user cached in karumbu_customer_user.
+- Identity attach: POST /api/enquiries and /api/payments/order attach customer_email when a customer Bearer token is sent; paid-order enquiries inherit it — so order history covers both enquiry and Razorpay orders.
+- Faster checkout: Contact form and Pay Now form pre-fill name/phone for logged-in customers.
+- Footer location changed to Rajamundry, Andhra Pradesh (Contact page still says Thanjavur — pending user confirmation to sync).
+
 ## Verified
 - curl: all 4 endpoints OK; enquiry round-trip persisted (2 test enquiries in DB).
 - e2e screenshots: hero 3D render, products grid (3 cards), story chapters, contact form submit → toast "Enquiry received", DB confirmed.

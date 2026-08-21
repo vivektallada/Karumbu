@@ -8,6 +8,7 @@ const links = [
   { to: "/story", label: "Story" },
   { to: "/products", label: "Products" },
   { to: "/contact", label: "Contact" },
+  { to: "/account", label: "Account" },
 ];
 
 export const Navbar = () => {

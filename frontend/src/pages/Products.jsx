@@ -18,7 +18,12 @@ export default function Products() {
     setPayState((s) => ({ ...s, [slug]: { quantity: 1, ...(s[slug] || {}), ...patch } }));
 
   const togglePay = (slug) =>
-    setPayState((s) => ({ ...s, [slug]: { quantity: 1, ...(s[slug] || {}), open: !s[slug]?.open } }));
+    setPayState((s) => {
+      const saved = JSON.parse(localStorage.getItem("karumbu_customer_user") || "null");
+      const base = s[slug] || { quantity: 1 };
+      const prefill = !s[slug]?.open && saved ? { name: saved.name || "", phone: saved.phone || "" } : {};
+      return { ...s, [slug]: { quantity: 1, ...base, ...prefill, open: !s[slug]?.open } };
+    });
 
   const loadRazorpay = () =>
     new Promise((resolve) => {
@@ -40,12 +45,14 @@ export default function Products() {
     try {
       const ok = await loadRazorpay();
       if (!ok) throw new Error("script");
+      const token = localStorage.getItem("karumbu_customer_token");
+      const payHeaders = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.post(`${API}/payments/order`, {
         product: p.slug,
         quantity: Number(f.quantity || 1),
         name: f.name.trim(),
         phone: f.phone.trim(),
-      });
+      }, { headers: payHeaders });
       const rzp = new window.Razorpay({
         key: data.key_id,
         amount: data.amount,

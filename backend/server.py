@@ -99,6 +99,39 @@ async def seed_admin():
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
         logger.info("Admin password updated from env")
 
+
+def create_customer_token(customer_id: str, email: str) -> str:
+    payload = {
+        "sub": customer_id,
+        "email": email,
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+        "type": "customer",
+    }
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+
+
+async def get_optional_customer(request: Request):
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    try:
+        payload = jwt.decode(auth_header[7:], get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "customer":
+            return None
+        return payload
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return None
+
+
+async def get_current_customer(request: Request) -> dict:
+    payload = await get_optional_customer(request)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    customer = await db.customers.find_one({"email": payload.get("email")}, {"_id": 0, "password_hash": 0})
+    if not customer:
+        raise HTTPException(status_code=401, detail="Customer not found")
+    return customer
+
 PRODUCTS = [
     {
         "slug": "classic",
@@ -402,9 +435,12 @@ async def serve_file(path: str):
 
 
 @api_router.post("/enquiries", response_model=Enquiry)
-async def create_enquiry(input: EnquiryCreate):
+async def create_enquiry(input: EnquiryCreate, request: Request):
     enquiry = Enquiry(**input.model_dump())
     doc = enquiry.model_dump()
+    customer = await get_optional_customer(request)
+    if customer:
+        doc["customer_email"] = customer["email"]
     doc['created_at'] = doc['created_at'].isoformat()
     await db.enquiries.insert_one(doc)
     asyncio.create_task(notify_new_enquiry(enquiry))
@@ -430,6 +466,63 @@ async def login(input: LoginInput, response: Response):
 @api_router.get("/auth/me")
 async def auth_me(admin=Depends(get_current_admin)):
     return admin
+
+
+class CustomerRegister(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    email: str = Field(min_length=5, max_length=120)
+    phone: str = Field(default="", max_length=15)
+    password: str = Field(min_length=8, max_length=72)
+
+
+class CustomerLogin(BaseModel):
+    email: str
+    password: str
+
+
+def customer_public(doc) -> dict:
+    return {"id": doc["id"], "name": doc["name"], "email": doc["email"], "phone": doc.get("phone", "")}
+
+
+@api_router.post("/auth/customer/register")
+async def customer_register(input: CustomerRegister):
+    email = input.email.lower().strip()
+    existing = await db.customers.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": input.name.strip(),
+        "email": email,
+        "phone": input.phone.strip(),
+        "password_hash": hash_password(input.password),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.customers.insert_one(doc)
+    return {"token": create_customer_token(doc["id"], email), "user": customer_public(doc)}
+
+
+@api_router.post("/auth/customer/login")
+async def customer_login(input: CustomerLogin):
+    email = input.email.lower().strip()
+    customer = await db.customers.find_one({"email": email})
+    if not customer or not verify_password(input.password, customer["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return {"token": create_customer_token(customer["id"], email), "user": customer_public(customer)}
+
+
+@api_router.get("/auth/customer/me")
+async def customer_me(customer=Depends(get_current_customer)):
+    return customer
+
+
+@api_router.get("/my/orders", response_model=List[Enquiry])
+async def my_orders(customer=Depends(get_current_customer)):
+    items = await db.enquiries.find({"customer_email": customer["email"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    for item in items:
+        if isinstance(item.get('created_at'), str):
+            item['created_at'] = datetime.fromisoformat(item['created_at'])
+    return items
 
 
 @api_router.get("/enquiries", response_model=List[Enquiry])
@@ -532,7 +625,7 @@ class PaymentVerifyInput(BaseModel):
 
 
 @api_router.post("/payments/order")
-async def create_payment_order(input: PaymentOrderInput):
+async def create_payment_order(input: PaymentOrderInput, request: Request):
     product = next((p for p in PRODUCTS if p["slug"] == input.product), None)
     if not product:
         raise HTTPException(status_code=404, detail="Unknown product")
@@ -546,7 +639,8 @@ async def create_payment_order(input: PaymentOrderInput):
     except Exception as e:
         logger.error(f"Razorpay order failed: {e}")
         raise HTTPException(status_code=502, detail="Could not create payment order")
-    await db.payments.insert_one({
+    customer = await get_optional_customer(request)
+    doc = {
         "id": str(uuid.uuid4()),
         "razorpay_order_id": order["id"],
         "product": input.product,
@@ -556,7 +650,10 @@ async def create_payment_order(input: PaymentOrderInput):
         "phone": input.phone,
         "status": "created",
         "created_at": datetime.now(timezone.utc).isoformat(),
-    })
+    }
+    if customer:
+        doc["customer_email"] = customer["email"]
+    await db.payments.insert_one(doc)
     return {
         "order_id": order["id"],
         "amount": total * 100,
@@ -599,6 +696,8 @@ async def verify_payment(input: PaymentVerifyInput):
             amount=payment["amount"],
         )
         doc = enquiry.model_dump()
+        if payment.get("customer_email"):
+            doc["customer_email"] = payment["customer_email"]
         doc['created_at'] = doc['created_at'].isoformat()
         await db.enquiries.insert_one(doc)
         asyncio.create_task(notify_new_enquiry(enquiry))
@@ -625,6 +724,7 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_seed():
     await seed_admin()
+    await db.customers.create_index("email", unique=True)
     try:
         init_storage()
         logger.info("Object storage initialized")

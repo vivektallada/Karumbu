@@ -35,7 +35,7 @@ export const Footer = () => {
             >
               <MessageCircle className="h-3.5 w-3.5 text-primary" /> Chat on WhatsApp
             </a>
-            <span className="text-muted-foreground">Thanjavur, Tamil Nadu</span>
+            <span className="text-muted-foreground">Rajamundry, Andhra Pradesh</span>
           </div>
         </div>
       </div>

@@ -40,13 +40,26 @@ export default function Contact() {
     if (p) setForm((f) => ({ ...f, product: p }));
   }, [searchParams]);
 
+  useEffect(() => {
+    const token = localStorage.getItem("karumbu_customer_token");
+    if (!token) return;
+    axios
+      .get(`${API}/auth/customer/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) =>
+        setForm((f) => ({ ...f, name: r.data.name || f.name, phone: r.data.phone || f.phone }))
+      )
+      .catch(() => {});
+  }, []);
+
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API}/enquiries`, { ...form, quantity: Number(form.quantity) });
+      const token = localStorage.getItem("karumbu_customer_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API}/enquiries`, { ...form, quantity: Number(form.quantity) }, { headers });
       toast.success("Enquiry received — we will call you back within a day.");
       setForm({ name: "", phone: "", product: "", quantity: 6, message: "" });
     } catch {
