@@ -132,7 +132,7 @@ async def get_current_customer(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Customer not found")
     return customer
 
-PRODUCTS = [
+DEFAULT_PRODUCTS = [
     {
         "slug": "classic",
         "name": "Classic Karumbu",
@@ -164,6 +164,39 @@ PRODUCTS = [
         "badge": "Festive",
     },
 ]
+
+SITE_DEFAULTS = {
+    "contact_email": "karumbu09@gmail.com",
+    "phone": "+91 91217 44996",
+    "whatsapp_number": "919121744996",
+    "location": "Rajamundry, Andhra Pradesh",
+    "hero_line1": "The field,",
+    "hero_line2": "in a glass.",
+    "hero_subcopy": "Cold-pressed cane, hand-pounded jaggery, dry ginger and cardamom — a South Indian classic, brewed in small batches along the Kaveri delta.",
+}
+
+DEFAULT_PRODUCT_IMAGE = "https://images.pexels.com/photos/12741759/pexels-photo-12741759.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+
+
+async def seed_products():
+    if await db.products.count_documents({}) == 0:
+        now = datetime.now(timezone.utc).isoformat()
+        await db.products.insert_many([
+            {**p, "active": True, "created_at": now} for p in DEFAULT_PRODUCTS
+        ])
+        logger.info("Products seeded")
+
+
+async def get_product(slug: str):
+    return await db.products.find_one({"slug": slug, "active": True}, {"_id": 0})
+
+
+async def get_settings_doc() -> dict:
+    doc = await db.settings.find_one({"key": "site"}, {"_id": 0})
+    merged = dict(SITE_DEFAULTS)
+    if doc:
+        merged.update({k: v for k, v in doc.items() if k != "key" and v is not None})
+    return merged
 
 
 EMAIL_BASE_URL = "https://integrations.emergentagent.com"
@@ -372,12 +405,11 @@ async def root():
     return {"message": "KARUMBU API — sugarcane panakam, bottled."}
 
 
-@api_router.get("/products")
-async def get_products():
+async def with_image_overrides(items):
     overrides = await db.product_images.find({"is_deleted": False}, {"_id": 0}).to_list(100)
     by_slug = {o["slug"]: o["storage_path"] for o in overrides}
     out = []
-    for p in PRODUCTS:
+    for p in items:
         item = dict(p)
         if p["slug"] in by_slug:
             item["image"] = f"/api/files/{by_slug[p['slug']]}"
@@ -386,9 +418,104 @@ async def get_products():
     return out
 
 
+@api_router.get("/products")
+async def get_products():
+    items = await db.products.find({"active": True}, {"_id": 0}).sort("created_at", 1).to_list(50)
+    return await with_image_overrides(items)
+
+
+@api_router.get("/admin/products")
+async def admin_products(admin=Depends(get_current_admin)):
+    items = await db.products.find({}, {"_id": 0}).sort("created_at", 1).to_list(100)
+    return await with_image_overrides(items)
+
+
+class ProductInput(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    tagline: str = Field(default="", max_length=120)
+    price: int = Field(ge=1, le=100000)
+    unit: str = Field(default="250 ml bottle", max_length=40)
+    description: str = Field(default="", max_length=500)
+    badge: str = Field(default="Small Batch", max_length=40)
+
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    tagline: Optional[str] = Field(default=None, max_length=120)
+    price: Optional[int] = Field(default=None, ge=1, le=100000)
+    unit: Optional[str] = Field(default=None, max_length=40)
+    description: Optional[str] = Field(default=None, max_length=500)
+    badge: Optional[str] = Field(default=None, max_length=40)
+    active: Optional[bool] = None
+
+
+def slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+@api_router.post("/admin/products")
+async def create_product(input: ProductInput, admin=Depends(get_current_admin)):
+    slug = slugify(input.name)
+    if await db.products.find_one({"slug": slug}):
+        raise HTTPException(status_code=409, detail="A product with a similar name already exists")
+    doc = {
+        **input.model_dump(),
+        "slug": slug,
+        "image": DEFAULT_PRODUCT_IMAGE,
+        "active": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.products.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/admin/products/{slug}")
+async def update_product(slug: str, input: ProductUpdate, admin=Depends(get_current_admin)):
+    updates = {k: v for k, v in input.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+    result = await db.products.update_one({"slug": slug}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"slug": slug, **updates}
+
+
+@api_router.delete("/admin/products/{slug}")
+async def delete_product(slug: str, admin=Depends(get_current_admin)):
+    result = await db.products.delete_one({"slug": slug})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"deleted": slug}
+
+
+@api_router.get("/settings")
+async def get_settings():
+    return await get_settings_doc()
+
+
+class SettingsUpdate(BaseModel):
+    contact_email: Optional[str] = Field(default=None, max_length=120)
+    phone: Optional[str] = Field(default=None, max_length=20)
+    whatsapp_number: Optional[str] = Field(default=None, max_length=15)
+    location: Optional[str] = Field(default=None, max_length=80)
+    hero_line1: Optional[str] = Field(default=None, max_length=60)
+    hero_line2: Optional[str] = Field(default=None, max_length=60)
+    hero_subcopy: Optional[str] = Field(default=None, max_length=300)
+
+
+@api_router.put("/admin/settings")
+async def update_settings(input: SettingsUpdate, admin=Depends(get_current_admin)):
+    updates = {k: v for k, v in input.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+    await db.settings.update_one({"key": "site"}, {"$set": updates}, upsert=True)
+    return await get_settings_doc()
+
+
 @api_router.post("/products/{slug}/image")
 async def upload_product_image(slug: str, file: UploadFile = File(...), admin=Depends(get_current_admin)):
-    if slug not in {p["slug"] for p in PRODUCTS}:
+    if not await db.products.find_one({"slug": slug}):
         raise HTTPException(status_code=404, detail="Unknown product")
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP or GIF images allowed")
@@ -570,7 +697,7 @@ async def draft_reply(enquiry_id: str, admin=Depends(get_current_admin)):
     enquiry = await db.enquiries.find_one({"id": enquiry_id}, {"_id": 0})
     if not enquiry:
         raise HTTPException(status_code=404, detail="Enquiry not found")
-    product = next((p for p in PRODUCTS if p["slug"] == enquiry["product"]), None)
+    product = await get_product(enquiry["product"])
     if product:
         price_line = (
             f"The brew is {product['name']} at ₹{product['price']} per {product['unit']}, "
@@ -626,7 +753,7 @@ class PaymentVerifyInput(BaseModel):
 
 @api_router.post("/payments/order")
 async def create_payment_order(input: PaymentOrderInput, request: Request):
-    product = next((p for p in PRODUCTS if p["slug"] == input.product), None)
+    product = await get_product(input.product)
     if not product:
         raise HTTPException(status_code=404, detail="Unknown product")
     client = razorpay_client()
@@ -725,6 +852,7 @@ logger = logging.getLogger(__name__)
 async def startup_seed():
     await seed_admin()
     await db.customers.create_index("email", unique=True)
+    await seed_products()
     try:
         init_storage()
         logger.info("Object storage initialized")

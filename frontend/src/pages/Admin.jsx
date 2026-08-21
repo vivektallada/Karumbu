@@ -6,6 +6,8 @@ import { LogOut, Trash2, Phone, CheckCircle2, CircleDot, RefreshCw, ImagePlus, L
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid } from "recharts";
 import { mediaUrl } from "@/lib/media";
 import { waLinkTo } from "@/lib/wa";
+import { getSettings, clearSettingsCache } from "@/lib/settings";
+import { Plus, Eye, EyeOff, Save } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -16,6 +18,9 @@ const statusStyles = {
   done: "border-border text-muted-foreground",
 };
 
+const adminInput =
+  "w-full border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:outline-none";
+
 export default function Admin() {
   const navigate = useNavigate();
   const [enquiries, setEnquiries] = useState(null);
@@ -23,6 +28,11 @@ export default function Admin() {
   const [uploading, setUploading] = useState(null);
   const [drafts, setDrafts] = useState({});
   const [drafting, setDrafting] = useState(null);
+  const [settingsForm, setSettingsForm] = useState(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [edits, setEdits] = useState({});
+  const [savingProduct, setSavingProduct] = useState(null);
+  const [newProduct, setNewProduct] = useState({ name: "", tagline: "", price: "", description: "", badge: "" });
   const fileInputs = useRef({});
 
   const headers = useCallback(
@@ -75,14 +85,106 @@ export default function Admin() {
 
   const loadProducts = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${API}/products`);
+      const { data } = await axios.get(`${API}/admin/products`, { headers: headers() });
       setProducts(data);
     } catch {}
-  }, []);
+  }, [headers]);
 
   useEffect(() => {
     loadProducts();
+    clearSettingsCache();
+    getSettings().then((s) =>
+      setSettingsForm({
+        contact_email: s.contact_email || "",
+        phone: s.phone || "",
+        whatsapp_number: s.whatsapp_number || "",
+        location: s.location || "",
+        hero_line1: s.hero_line1 || "",
+        hero_line2: s.hero_line2 || "",
+        hero_subcopy: s.hero_subcopy || "",
+      })
+    );
   }, [loadProducts]);
+
+  const setEdit = (slug, key, value) =>
+    setEdits((e) => ({ ...e, [slug]: { ...(e[slug] || {}), [key]: value } }));
+
+  const saveProduct = async (slug) => {
+    const changes = edits[slug] || {};
+    const payload = Object.fromEntries(
+      Object.entries(changes).filter(([, v]) => v !== "" && v !== undefined)
+    );
+    if (payload.price !== undefined) payload.price = Number(payload.price);
+    if (Object.keys(payload).length === 0) {
+      toast.error("Nothing changed.");
+      return;
+    }
+    setSavingProduct(slug);
+    try {
+      await axios.put(`${API}/admin/products/${slug}`, payload, { headers: headers() });
+      toast.success("Product updated across the site.");
+      setEdits((e) => ({ ...e, [slug]: {} }));
+      await loadProducts();
+    } catch {
+      toast.error("Update failed.");
+    } finally {
+      setSavingProduct(null);
+    }
+  };
+
+  const toggleActive = async (p) => {
+    try {
+      await axios.put(`${API}/admin/products/${p.slug}`, { active: !p.active }, { headers: headers() });
+      toast.success(p.active ? `${p.name} hidden from the site.` : `${p.name} is live again.`);
+      await loadProducts();
+    } catch {
+      toast.error("Could not update product.");
+    }
+  };
+
+  const deleteProduct = async (p) => {
+    try {
+      await axios.delete(`${API}/admin/products/${p.slug}`, { headers: headers() });
+      toast.success(`${p.name} deleted.`);
+      await loadProducts();
+    } catch {
+      toast.error("Delete failed.");
+    }
+  };
+
+  const createProduct = async (e) => {
+    e.preventDefault();
+    setSavingProduct("new");
+    try {
+      await axios.post(
+        `${API}/admin/products`,
+        { ...newProduct, price: Number(newProduct.price) },
+        { headers: headers() }
+      );
+      toast.success("Product added to the site.");
+      setNewProduct({ name: "", tagline: "", price: "", description: "", badge: "" });
+      await loadProducts();
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      toast.error(typeof detail === "string" ? detail : "Could not add product.");
+    } finally {
+      setSavingProduct(null);
+    }
+  };
+
+  const saveSettings = async (e) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    try {
+      await axios.put(`${API}/admin/settings`, settingsForm, { headers: headers() });
+      clearSettingsCache();
+      toast.success("Site settings updated everywhere.");
+    } catch {
+      toast.error("Could not save settings.");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const uploadImage = async (slug, file) => {
     if (!file) return;
@@ -291,10 +393,53 @@ export default function Admin() {
         </div>
       )}
 
+      {settingsForm && (
+        <form onSubmit={saveSettings} data-testid="settings-form" className="mt-12 border border-border bg-muted p-8">
+          <p className="text-xs uppercase tracking-[0.3em] text-primary">Site Settings</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            These update the footer, contact page, WhatsApp buttons and the home page headline everywhere at once.
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Contact email</label>
+              <input data-testid="settings-email" value={settingsForm.contact_email} onChange={(e) => setSettingsForm((s) => ({ ...s, contact_email: e.target.value }))} className={adminInput} />
+            </div>
+            <div>
+              <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Phone</label>
+              <input data-testid="settings-phone" value={settingsForm.phone} onChange={(e) => setSettingsForm((s) => ({ ...s, phone: e.target.value }))} className={adminInput} />
+            </div>
+            <div>
+              <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">WhatsApp number (country code, digits only)</label>
+              <input data-testid="settings-whatsapp" value={settingsForm.whatsapp_number} onChange={(e) => setSettingsForm((s) => ({ ...s, whatsapp_number: e.target.value.replace(/\D/g, "") }))} className={adminInput} />
+            </div>
+            <div>
+              <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Location</label>
+              <input data-testid="settings-location" value={settingsForm.location} onChange={(e) => setSettingsForm((s) => ({ ...s, location: e.target.value }))} className={adminInput} />
+            </div>
+            <div>
+              <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Hero headline — line 1</label>
+              <input data-testid="settings-hero1" value={settingsForm.hero_line1} onChange={(e) => setSettingsForm((s) => ({ ...s, hero_line1: e.target.value }))} className={adminInput} />
+            </div>
+            <div>
+              <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Hero headline — line 2 (shown in amber italic)</label>
+              <input data-testid="settings-hero2" value={settingsForm.hero_line2} onChange={(e) => setSettingsForm((s) => ({ ...s, hero_line2: e.target.value }))} className={adminInput} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="mb-2 block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Hero subtext</label>
+            <textarea rows={2} data-testid="settings-subcopy" value={settingsForm.hero_subcopy} onChange={(e) => setSettingsForm((s) => ({ ...s, hero_subcopy: e.target.value }))} className={`${adminInput} resize-none`} />
+          </div>
+          <button type="submit" disabled={savingSettings} data-testid="settings-save-button" className="mt-6 flex items-center gap-2 bg-primary px-6 py-3 text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-accent disabled:opacity-60">
+            {savingSettings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Save Settings
+          </button>
+        </form>
+      )}
+
       <div className="mt-12">
-        <p className="text-xs uppercase tracking-[0.3em] text-primary">Product Photos</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-primary">Products</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Upload real photos of your brews — they replace the stock images on the Home and Products pages instantly.
+          Edit names, prices, descriptions and photos — or hide, delete and add brews. Every change goes live on the site instantly.
         </p>
         <div className="mt-6 grid gap-px border border-border bg-border md:grid-cols-3">
           {products.map((p) => (
@@ -346,9 +491,45 @@ export default function Admin() {
                   </button>
                 )}
               </div>
+              <div className="mt-6 flex flex-col gap-3 border-t border-border pt-6">
+                <input data-testid={`edit-name-${p.slug}`} defaultValue={p.name} onChange={(e) => setEdit(p.slug, "name", e.target.value)} placeholder="Name" className={adminInput} />
+                <input data-testid={`edit-tagline-${p.slug}`} defaultValue={p.tagline} onChange={(e) => setEdit(p.slug, "tagline", e.target.value)} placeholder="Tagline" className={adminInput} />
+                <div className="flex gap-3">
+                  <input data-testid={`edit-price-${p.slug}`} type="number" min={1} defaultValue={p.price} onChange={(e) => setEdit(p.slug, "price", e.target.value)} placeholder="Price ₹" className={`${adminInput} w-28`} />
+                  <input data-testid={`edit-badge-${p.slug}`} defaultValue={p.badge} onChange={(e) => setEdit(p.slug, "badge", e.target.value)} placeholder="Badge" className={adminInput} />
+                </div>
+                <textarea data-testid={`edit-description-${p.slug}`} rows={3} defaultValue={p.description} onChange={(e) => setEdit(p.slug, "description", e.target.value)} placeholder="Description" className={`${adminInput} resize-none`} />
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={() => saveProduct(p.slug)} disabled={savingProduct === p.slug} data-testid={`save-product-${p.slug}`} className="flex items-center gap-2 bg-primary px-4 py-2 text-xs uppercase tracking-[0.15em] text-white transition-colors hover:bg-accent disabled:opacity-60">
+                    {savingProduct === p.slug ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
+                  </button>
+                  <button onClick={() => toggleActive(p)} data-testid={`toggle-product-${p.slug}`} className="flex items-center gap-2 border border-border px-4 py-2 text-xs uppercase tracking-[0.15em] text-foreground transition-colors hover:border-primary hover:text-primary">
+                    {p.active ? (<><EyeOff className="h-3.5 w-3.5" /> Hide</>) : (<><Eye className="h-3.5 w-3.5" /> Show</>)}
+                  </button>
+                  <button onClick={() => deleteProduct(p)} data-testid={`delete-product-${p.slug}`} className="flex items-center gap-2 border border-border px-4 py-2 text-xs uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:border-destructive hover:text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </button>
+                </div>
+                {!p.active && (
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-destructive" data-testid={`hidden-label-${p.slug}`}>Hidden from site</p>
+                )}
+              </div>
             </div>
           ))}
         </div>
+        <form onSubmit={createProduct} data-testid="add-product-form" className="mt-6 border border-border bg-muted p-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Add a new brew</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <input required minLength={2} data-testid="new-product-name" value={newProduct.name} onChange={(e) => setNewProduct((n) => ({ ...n, name: e.target.value }))} placeholder="Name (e.g. Panimirtham)" className={adminInput} />
+            <input data-testid="new-product-tagline" value={newProduct.tagline} onChange={(e) => setNewProduct((n) => ({ ...n, tagline: e.target.value }))} placeholder="Tagline (e.g. Lemon · Cane · Mint)" className={adminInput} />
+            <input required type="number" min={1} data-testid="new-product-price" value={newProduct.price} onChange={(e) => setNewProduct((n) => ({ ...n, price: e.target.value }))} placeholder="Price ₹" className={adminInput} />
+            <input data-testid="new-product-badge" value={newProduct.badge} onChange={(e) => setNewProduct((n) => ({ ...n, badge: e.target.value }))} placeholder="Badge (e.g. New)" className={adminInput} />
+          </div>
+          <textarea rows={2} data-testid="new-product-description" value={newProduct.description} onChange={(e) => setNewProduct((n) => ({ ...n, description: e.target.value }))} placeholder="Short description" className={`${adminInput} mt-3 resize-none`} />
+          <button type="submit" disabled={savingProduct === "new"} data-testid="add-product-button" className="mt-4 flex items-center gap-2 bg-primary px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-accent disabled:opacity-60">
+            {savingProduct === "new" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add Product
+          </button>
+        </form>
       </div>
 
       <div className="mt-12 flex flex-col gap-px border border-border bg-border">

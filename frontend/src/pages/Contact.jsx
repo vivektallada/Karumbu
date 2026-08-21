@@ -6,6 +6,7 @@ import { Loader2, Send, MessageCircle } from "lucide-react";
 import { waLink } from "@/lib/wa";
 import { MaskedLines } from "@/components/MaskedLines";
 import { Reveal } from "@/components/Reveal";
+import { getSettings } from "@/lib/settings";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -19,6 +20,7 @@ const labelClass = "mb-2 block text-xs uppercase tracking-[0.2em] text-muted-for
 export default function Contact() {
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
+  const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -33,6 +35,7 @@ export default function Contact() {
       .get(`${API}/products`)
       .then((r) => setProducts(r.data))
       .catch(() => {});
+    getSettings().then(setSettings);
   }, []);
 
   useEffect(() => {
@@ -96,8 +99,8 @@ export default function Contact() {
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A100C]/90 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 p-8">
               <p className="text-xs uppercase tracking-[0.3em] text-primary">Reach Us</p>
-              <p className="mt-4 font-serif text-2xl font-light text-foreground">karumbu09@gmail.com</p>
-              <p className="mt-1 text-sm text-muted-foreground">+91 91217 44996 · Thanjavur, Tamil Nadu</p>
+              <p className="mt-4 font-serif text-2xl font-light text-foreground">{settings.contact_email || "karumbu09@gmail.com"}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{settings.phone || "+91 91217 44996"} · {settings.location || "Rajamundry, Andhra Pradesh"}</p>
             </div>
           </div>
         </Reveal>
@@ -201,7 +204,7 @@ export default function Contact() {
               )}
             </button>
             <a
-              href={waLink("Hi KARUMBU! I'd like to place an order.")}
+              href={waLink("Hi KARUMBU! I'd like to place an order.", settings.whatsapp_number)}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="contact-whatsapp-button"

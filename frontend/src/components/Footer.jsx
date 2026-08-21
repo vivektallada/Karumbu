@@ -1,8 +1,16 @@
 import { Link } from "react-router-dom";
 import { Sprout, MessageCircle } from "lucide-react";
 import { waLink } from "@/lib/wa";
+import { getSettings } from "@/lib/settings";
+import { useEffect, useState } from "react";
 
 export const Footer = () => {
+  const [settings, setSettings] = useState({});
+
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
+
   return (
     <footer data-testid="site-footer" className="border-t border-border bg-muted">
       <div className="grid gap-12 px-6 py-16 md:grid-cols-3 md:px-16 lg:px-24">
@@ -24,10 +32,10 @@ export const Footer = () => {
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Reach Us</p>
           <div className="mt-4 flex flex-col gap-3 text-sm text-foreground">
-            <span data-testid="footer-email">karumbu09@gmail.com</span>
-            <span data-testid="footer-phone">+91 91217 44996</span>
+            <span data-testid="footer-email">{settings.contact_email || "karumbu09@gmail.com"}</span>
+            <span data-testid="footer-phone">{settings.phone || "+91 91217 44996"}</span>
             <a
-              href={waLink("Hi KARUMBU! I'd like to place an order.")}
+              href={waLink("Hi KARUMBU! I'd like to place an order.", settings.whatsapp_number)}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="footer-whatsapp-link"
@@ -35,7 +43,7 @@ export const Footer = () => {
             >
               <MessageCircle className="h-3.5 w-3.5 text-primary" /> Chat on WhatsApp
             </a>
-            <span className="text-muted-foreground">Rajamundry, Andhra Pradesh</span>
+            <span className="text-muted-foreground">{settings.location || "Rajamundry, Andhra Pradesh"}</span>
           </div>
         </div>
       </div>

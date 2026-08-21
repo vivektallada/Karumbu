@@ -4,6 +4,7 @@ import axios from "axios";
 import { ArrowRight, ArrowDown } from "lucide-react";
 import { CaneScene } from "@/components/CaneScene";
 import { mediaUrl } from "@/lib/media";
+import { getSettings } from "@/lib/settings";
 import { MaskedLines } from "@/components/MaskedLines";
 import { Reveal } from "@/components/Reveal";
 import { Marquee } from "@/components/Marquee";
@@ -17,6 +18,7 @@ const COPPER_IMG =
 
 export default function Home() {
   const [products, setProducts] = useState([]);
+  const [settings, setSettings] = useState({});
   const scrollRef = useRef(0);
 
   useEffect(() => {
@@ -24,6 +26,7 @@ export default function Home() {
       .get(`${API}/products`)
       .then((r) => setProducts(r.data))
       .catch(() => {});
+    getSettings().then(setSettings);
   }, []);
 
   useEffect(() => {
@@ -50,8 +53,8 @@ export default function Home() {
           <h1 className="font-serif text-[clamp(3rem,9vw,7rem)] font-light leading-[0.95] tracking-tight text-foreground">
             <MaskedLines
               lines={[
-                <>The field,</>,
-                <span className="italic text-primary">in a glass.</span>,
+                <>{settings.hero_line1 || "The field,"}</>,
+                <span className="italic text-primary">{settings.hero_line2 || "in a glass."}</span>,
               ]}
               delay={0.25}
             />
@@ -61,8 +64,8 @@ export default function Home() {
               data-testid="hero-subcopy"
               className="max-w-md text-sm leading-relaxed text-muted-foreground md:text-base"
             >
-              Cold-pressed cane, hand-pounded jaggery, dry ginger and cardamom — a South Indian
-              classic, brewed in small batches along the Kaveri delta.
+              {settings.hero_subcopy ||
+                "Cold-pressed cane, hand-pounded jaggery, dry ginger and cardamom — a South Indian classic, brewed in small batches along the Kaveri delta."}
             </p>
             <div className="pointer-events-auto flex flex-wrap items-center gap-4">
               <Link

@@ -72,6 +72,13 @@ User choices: full multi-page website (home, story, products, contact); 3D sugar
 - Faster checkout: Contact form and Pay Now form pre-fill name/phone for logged-in customers.
 - Footer location changed to Rajamundry, Andhra Pradesh (Contact page still says Thanjavur — pending user confirmation to sync).
 
+## Implemented (2026-08-21, round 8)
+- Admin customization hub: products moved from hardcoded constant to MongoDB (seeded idempotently from DEFAULT_PRODUCTS on startup; active flag). Public GET /api/products returns active only.
+- Admin product CRUD: GET /api/admin/products (all incl hidden), POST /api/admin/products (slugified name, default stock image), PUT /api/admin/products/{slug} (name/tagline/price/unit/description/badge/active), DELETE /api/admin/products/{slug}. Payments and AI drafter read products from DB.
+- Site settings: GET /api/settings (public, merged over SITE_DEFAULTS), PUT /api/admin/settings (admin). Editable: contact email, phone, WhatsApp number, location, hero headline lines 1+2, hero subtext.
+- Frontend: lib/settings.js cached fetch; Footer, Contact and Home hero read live settings (location now Rajamundry everywhere); waLink accepts dynamic number.
+- Admin UI: "Site Settings" form + full "Products" manager (photo upload/remove + inline field editors + Save/Hide/Delete per brew + "Add a new brew" form).
+
 ## Verified
 - curl: all 4 endpoints OK; enquiry round-trip persisted (2 test enquiries in DB).
 - e2e screenshots: hero 3D render, products grid (3 cards), story chapters, contact form submit → toast "Enquiry received", DB confirmed.
