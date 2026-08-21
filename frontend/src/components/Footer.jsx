@@ -18,6 +18,7 @@ export const Footer = () => {
             <Link to="/story" data-testid="footer-story-link" className="text-sm text-foreground transition-colors hover:text-primary">Our Story</Link>
             <Link to="/products" data-testid="footer-products-link" className="text-sm text-foreground transition-colors hover:text-primary">The Range</Link>
             <Link to="/contact" data-testid="footer-contact-link" className="text-sm text-foreground transition-colors hover:text-primary">Order & Contact</Link>
+            <Link to="/admin/login" data-testid="footer-admin-link" className="text-sm text-muted-foreground transition-colors hover:text-primary">Admin Panel</Link>
           </div>
         </div>
         <div>
