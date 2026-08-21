@@ -52,6 +52,11 @@ User choices: full multi-page website (home, story, products, contact); 3D sugar
 - Backend: POST/DELETE /api/products/{slug}/image (admin-only), GET /api/files/{path} public serving with soft-delete checks, GET /api/products merges uploaded images over stock URLs (custom_image flag). product_images MongoDB collection with is_deleted soft-delete.
 - Uploaded photos power Products page cards and Home spotlight thumbnails automatically (mediaUrl helper prefixes backend URL).
 
+## Implemented (2026-08-21, round 4)
+- Claude AI integration (anthropic/claude-sonnet-4-6 via emergentintegrations LlmChat + EMERGENT_LLM_KEY): admin reply drafter.
+- POST /api/enquiries/{id}/draft-reply (admin-only) streams a warm South Indian host-voiced WhatsApp reply draft over SSE (X-Accel-Buffering: no), with enquiry context + computed price total; WhatsApp-native *bold* formatting.
+- Admin UI: "Draft Reply" button per enquiry, live streaming draft box with cursor, Copy button, "Send on WhatsApp" deep link pre-addressed to the customer's phone with the drafted text (waLinkTo helper).
+
 ## Verified
 - curl: all 4 endpoints OK; enquiry round-trip persisted (2 test enquiries in DB).
 - e2e screenshots: hero 3D render, products grid (3 cards), story chapters, contact form submit → toast "Enquiry received", DB confirmed.

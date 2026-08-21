@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "sonner";
-import { LogOut, Trash2, Phone, CheckCircle2, CircleDot, RefreshCw, ImagePlus, Loader2 } from "lucide-react";
+import { LogOut, Trash2, Phone, CheckCircle2, CircleDot, RefreshCw, ImagePlus, Loader2, Sparkles, Copy, MessageCircle } from "lucide-react";
 import { mediaUrl } from "@/lib/media";
+import { waLinkTo } from "@/lib/wa";
 import { Reveal } from "@/components/Reveal";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -19,6 +20,8 @@ export default function Admin() {
   const [enquiries, setEnquiries] = useState(null);
   const [products, setProducts] = useState([]);
   const [uploading, setUploading] = useState(null);
+  const [drafts, setDrafts] = useState({});
+  const [drafting, setDrafting] = useState(null);
   const fileInputs = useRef({});
 
   const headers = useCallback(
@@ -104,6 +107,56 @@ export default function Admin() {
       await loadProducts();
     } catch {
       toast.error("Remove failed.");
+    }
+  };
+
+  const draftReply = async (e) => {
+    setDrafting(e.id);
+    setDrafts((d) => ({ ...d, [e.id]: "" }));
+    try {
+      const resp = await fetch(`${API}/enquiries/${e.id}/draft-reply`, {
+        method: "POST",
+        headers: headers(),
+      });
+      if (!resp.ok) throw new Error();
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6).trim();
+          if (payload === "[DONE]") break;
+          try {
+            const obj = JSON.parse(payload);
+            if (obj.delta) setDrafts((d) => ({ ...d, [e.id]: (d[e.id] || "") + obj.delta }));
+            if (obj.error) toast.error(obj.error);
+          } catch {}
+        }
+      }
+    } catch {
+      toast.error("Could not draft a reply.");
+      setDrafts((d) => {
+        const next = { ...d };
+        delete next[e.id];
+        return next;
+      });
+    } finally {
+      setDrafting(null);
+    }
+  };
+
+  const copyDraft = async (id) => {
+    try {
+      await navigator.clipboard.writeText(drafts[id]);
+      toast.success("Reply copied.");
+    } catch {
+      toast.error("Copy failed.");
     }
   };
 
@@ -231,7 +284,7 @@ export default function Admin() {
           <Reveal key={e.id} delay={Math.min(i * 0.05, 0.3)}>
             <div
               data-testid={`enquiry-row-${e.id}`}
-              className="flex flex-col gap-6 bg-muted p-6 transition-colors hover:bg-secondary md:p-8 lg:flex-row lg:items-center lg:justify-between"
+              className="flex flex-col gap-6 bg-muted p-6 transition-colors hover:bg-secondary md:p-8 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
@@ -255,6 +308,19 @@ export default function Admin() {
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-3">
+                <button
+                  data-testid={`enquiry-draft-${e.id}`}
+                  onClick={() => draftReply(e)}
+                  disabled={drafting === e.id}
+                  className="flex items-center gap-2 border border-primary px-4 py-2 text-xs uppercase tracking-[0.15em] text-primary transition-colors hover:bg-primary hover:text-white disabled:opacity-60"
+                >
+                  {drafting === e.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {drafting === e.id ? "Drafting…" : "Draft Reply"}
+                </button>
                 {e.status !== "contacted" && e.status !== "done" && (
                   <button
                     data-testid={`enquiry-contacted-${e.id}`}
@@ -281,6 +347,35 @@ export default function Admin() {
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </button>
               </div>
+              {drafts[e.id] !== undefined && (
+                <div data-testid={`draft-box-${e.id}`} className="w-full border-t border-border pt-6">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-primary">Drafted reply — warm host voice</p>
+                  <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {drafts[e.id]}
+                    {drafting === e.id && <span className="animate-pulse text-primary">▍</span>}
+                  </p>
+                  {drafting !== e.id && drafts[e.id] && (
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        data-testid={`draft-copy-${e.id}`}
+                        onClick={() => copyDraft(e.id)}
+                        className="flex items-center gap-2 border border-border px-4 py-2 text-xs uppercase tracking-[0.15em] text-foreground transition-colors hover:border-primary hover:text-primary"
+                      >
+                        <Copy className="h-3.5 w-3.5" /> Copy
+                      </button>
+                      <a
+                        href={waLinkTo(e.phone.replace(/\D/g, ""), drafts[e.id])}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-testid={`draft-send-${e.id}`}
+                        className="flex items-center gap-2 bg-primary px-4 py-2 text-xs uppercase tracking-[0.15em] text-white transition-colors hover:bg-accent"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" /> Send on WhatsApp
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </Reveal>
         ))}

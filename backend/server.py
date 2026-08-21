@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 import asyncio
+import json
 import requests
 import re
 import ipaddress
@@ -19,6 +20,8 @@ from html import escape
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 from datetime import datetime, timezone, timedelta
+from fastapi.responses import StreamingResponse
+from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -444,6 +447,63 @@ async def delete_enquiry(enquiry_id: str, admin=Depends(get_current_admin)):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Enquiry not found")
     return {"deleted": enquiry_id}
+
+
+DRAFT_SYSTEM = (
+    "You are the warm host of KARUMBU, an artisanal sugarcane panakam brand from Thanjavur, Tamil Nadu. "
+    "You write short, polite WhatsApp-style reply drafts that the business owner sends to customers who enquired about ordering. "
+    "Tone: warm South Indian host — friendly, rooted, gently poetic about the field and the craft, but never so flowery that it wastes the customer's time. "
+    "Keep it under 90 words. Always: greet the customer by name, thank them for the enquiry, confirm the brew and quantity, "
+    "state the approximate total price in rupees, promise a call back within one working day, and sign off as '— Team KARUMBU'. "
+    "Format for WhatsApp: use *single asterisks* for bold (never double asterisks or markdown). "
+    "Never invent discounts, exact delivery dates, or payment links."
+)
+
+
+@api_router.post("/enquiries/{enquiry_id}/draft-reply")
+async def draft_reply(enquiry_id: str, admin=Depends(get_current_admin)):
+    enquiry = await db.enquiries.find_one({"id": enquiry_id}, {"_id": 0})
+    if not enquiry:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    product = next((p for p in PRODUCTS if p["slug"] == enquiry["product"]), None)
+    if product:
+        price_line = (
+            f"The brew is {product['name']} at ₹{product['price']} per {product['unit']}, "
+            f"so the approximate total is ₹{product['price'] * enquiry['quantity']}."
+        )
+    else:
+        price_line = "They picked an assorted case of all three brews (₹99–₹149 per 250 ml bottle); give a rough total range."
+    prompt = (
+        "Draft the reply for this enquiry:\n"
+        f"Customer name: {enquiry['name']}\n"
+        f"Brew: {enquiry['product']}\n"
+        f"Quantity: {enquiry['quantity']} bottles\n"
+        f"Their message: {enquiry.get('message') or '—'}\n"
+        f"Price info: {price_line}"
+    )
+
+    async def gen():
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"draft-{enquiry_id}-{uuid.uuid4()}",
+            system_message=DRAFT_SYSTEM,
+        ).with_model("anthropic", "claude-sonnet-4-6")
+        try:
+            async for ev in chat.stream_message(UserMessage(text=prompt)):
+                if isinstance(ev, TextDelta):
+                    yield f"data: {json.dumps({'delta': ev.content})}\n\n"
+                elif isinstance(ev, StreamDone):
+                    break
+        except Exception as e:
+            logger.error(f"Draft reply failed: {e}")
+            yield f"data: {json.dumps({'error': 'Could not draft a reply right now. Please try again.'})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 app.include_router(api_router)
