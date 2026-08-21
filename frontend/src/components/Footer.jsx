@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Sprout } from "lucide-react";
+import { Sprout, MessageCircle } from "lucide-react";
+import { waLink } from "@/lib/wa";
 
 export const Footer = () => {
   return (
@@ -22,8 +23,17 @@ export const Footer = () => {
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Reach Us</p>
           <div className="mt-4 flex flex-col gap-3 text-sm text-foreground">
-            <span data-testid="footer-email">hello@karumbu.in</span>
-            <span data-testid="footer-phone">+91 98400 12345</span>
+            <span data-testid="footer-email">karumbu09@gmail.com</span>
+            <span data-testid="footer-phone">+91 91217 44996</span>
+            <a
+              href={waLink("Hi KARUMBU! I'd like to place an order.")}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="footer-whatsapp-link"
+              className="flex items-center gap-2 text-foreground transition-colors hover:text-primary"
+            >
+              <MessageCircle className="h-3.5 w-3.5 text-primary" /> Chat on WhatsApp
+            </a>
             <span className="text-muted-foreground">Thanjavur, Tamil Nadu</span>
           </div>
         </div>

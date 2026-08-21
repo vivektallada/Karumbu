@@ -40,16 +40,22 @@ User choices: full multi-page website (home, story, products, contact); 3D sugar
 - Private Enquiries Dashboard at /admin (login at /admin/login): stats (total, awaiting reply, bottles requested), enquiry cards with status badges, mark contacted/done, delete, refresh, logout. GET/PATCH/DELETE /api/enquiries protected by Bearer token; POST /api/enquiries stays public for customers.
 - 3D glass realism upgrade: transmissive liquid with depth, 3 floating ice cubes, 46 condensation droplets tracking the glass taper, clearcoat glass walls, meniscus surface disc, capped cane stirrer.
 
+## Implemented (2026-08-21, round 2)
+- WhatsApp ordering: wa.me deep links to +91 9121744996 with pre-filled per-product messages on every product card (Products page), contact page CTA, and footer chat link. Helper: src/lib/wa.js.
+- Order email alerts: Emergent-managed Resend proxy (EMERGENT_EMAIL_KEY, EMAIL_FROM_NAME=KARUMBU, NOTIFY_EMAIL=karumbu09@gmail.com); fire-and-forget asyncio task on POST /api/enquiries with guardrail gate (_assert_safe_email) and server-side branded HTML template. Verified: 202 Accepted, email id returned.
+- Pour-on-scroll hero: copper jug hovers over the glass, tilts and pours a panakam stream as the visitor scrolls the first viewport; liquid level rises 25%→100%, ice cubes surface near full, condensation appears at full, jug fades out, camera dollies in. Driven by scrollRef progress from window scroll.
+- Contact details updated to real ones: karumbu09@gmail.com, +91 91217 44996.
+
 ## Verified
 - curl: all 4 endpoints OK; enquiry round-trip persisted (2 test enquiries in DB).
 - e2e screenshots: hero 3D render, products grid (3 cards), story chapters, contact form submit → toast "Enquiry received", DB confirmed.
 
 ## Backlog
 - P0: none.
-- P1: WhatsApp order button; real product photography; enquiry email notifications (Resend).
-- P2: GLTF bottle model for the hero; scroll-scrubbed 3D (bottle pours as you scroll); multi-language (Tamil) toggle; payment/checkout; admin analytics.
+- P1: Real product photography; customer-facing order confirmation email.
+- P2: GLTF bottle model for the hero; multi-language (Tamil) toggle; payment/checkout; admin analytics.
 
 ## Next Tasks
-1. WhatsApp deep-link ordering.
-2. Replace primitive glass with a modeled GLTF bottle.
-3. Email notification to admin on new enquiry.
+1. Replace primitive glass with a modeled GLTF bottle.
+2. Customer order-confirmation email on enquiry.
+3. Admin analytics (enquiries per product/week).

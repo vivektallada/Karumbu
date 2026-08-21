@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { ArrowRight, ArrowDown } from "lucide-react";
@@ -16,6 +16,7 @@ const COPPER_IMG =
 
 export default function Home() {
   const [products, setProducts] = useState([]);
+  const scrollRef = useRef(0);
 
   useEffect(() => {
     axios
@@ -24,10 +25,19 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const onScroll = () => {
+      scrollRef.current = Math.min(1, Math.max(0, window.scrollY / (window.innerHeight * 0.9)));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div data-testid="home-page">
       <section data-testid="hero-section" className="relative min-h-screen overflow-hidden">
-        <CaneScene />
+        <CaneScene scrollRef={scrollRef} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,#0A100C_94%)]" />
         <div className="pointer-events-none relative z-10 flex min-h-screen flex-col justify-end px-6 pb-20 md:px-16 md:pb-24 lg:px-24">
           <p

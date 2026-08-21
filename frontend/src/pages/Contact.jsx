@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "sonner";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, MessageCircle } from "lucide-react";
+import { waLink } from "@/lib/wa";
 import { MaskedLines } from "@/components/MaskedLines";
 import { Reveal } from "@/components/Reveal";
 
@@ -82,8 +83,8 @@ export default function Contact() {
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A100C]/90 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 p-8">
               <p className="text-xs uppercase tracking-[0.3em] text-primary">Reach Us</p>
-              <p className="mt-4 font-serif text-2xl font-light text-foreground">hello@karumbu.in</p>
-              <p className="mt-1 text-sm text-muted-foreground">+91 98400 12345 · Thanjavur, Tamil Nadu</p>
+              <p className="mt-4 font-serif text-2xl font-light text-foreground">karumbu09@gmail.com</p>
+              <p className="mt-1 text-sm text-muted-foreground">+91 91217 44996 · Thanjavur, Tamil Nadu</p>
             </div>
           </div>
         </Reveal>
@@ -186,6 +187,16 @@ export default function Contact() {
                 </>
               )}
             </button>
+            <a
+              href={waLink("Hi KARUMBU! I'd like to place an order.")}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="contact-whatsapp-button"
+              className="flex items-center justify-center gap-3 border border-border px-8 py-4 text-xs uppercase tracking-[0.2em] text-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Or order instantly on WhatsApp
+            </a>
             <p className="text-xs text-muted-foreground">
               We reply within one working day. No spam — only panakam.
             </p>

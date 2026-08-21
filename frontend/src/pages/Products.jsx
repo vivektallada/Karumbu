@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MessageCircle } from "lucide-react";
+import { waLink } from "@/lib/wa";
 import { MaskedLines } from "@/components/MaskedLines";
 import { Reveal } from "@/components/Reveal";
 
@@ -64,14 +65,26 @@ export default function Products() {
                 <p className="mt-6 flex-1 text-sm leading-relaxed text-muted-foreground">{p.description}</p>
                 <div className="mt-8 flex items-center justify-between">
                   <p className="font-serif text-3xl text-primary">₹{p.price}</p>
+                </div>
+                <div className="mt-4 flex flex-col gap-3">
                   <Link
                     to={`/contact?product=${p.slug}`}
                     data-testid={`add-to-order-${p.slug}`}
-                    className="group/btn flex items-center gap-2 bg-primary px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-accent"
+                    className="group/btn flex items-center justify-center gap-2 bg-primary px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-accent"
                   >
                     Add to Order
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-1" />
                   </Link>
+                  <a
+                    href={waLink(`Hi KARUMBU! I'd like to order ${p.name} (₹${p.price} / ${p.unit}).`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid={`whatsapp-order-${p.slug}`}
+                    className="flex items-center justify-center gap-2 border border-border px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-foreground transition-colors hover:border-primary hover:text-primary"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    WhatsApp Order
+                  </a>
                 </div>
               </div>
             </div>
