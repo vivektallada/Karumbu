@@ -35,16 +35,21 @@ User choices: full multi-page website (home, story, products, contact); 3D sugar
 - Backend endpoints: GET /api/, GET /api/products, POST /api/enquiries, GET /api/enquiries.
 - Glassmorphism fixed navbar (desktop + animated mobile menu), footer, grain overlay, lenis momentum scrolling, custom scrollbar/selection.
 
+## Implemented (2026-08-21)
+- Admin auth: JWT email/password login (POST /api/auth/login, GET /api/auth/me), bcrypt hashing, admin seeded idempotently on startup from ADMIN_EMAIL/ADMIN_PASSWORD env.
+- Private Enquiries Dashboard at /admin (login at /admin/login): stats (total, awaiting reply, bottles requested), enquiry cards with status badges, mark contacted/done, delete, refresh, logout. GET/PATCH/DELETE /api/enquiries protected by Bearer token; POST /api/enquiries stays public for customers.
+- 3D glass realism upgrade: transmissive liquid with depth, 3 floating ice cubes, 46 condensation droplets tracking the glass taper, clearcoat glass walls, meniscus surface disc, capped cane stirrer.
+
 ## Verified
 - curl: all 4 endpoints OK; enquiry round-trip persisted (2 test enquiries in DB).
 - e2e screenshots: hero 3D render, products grid (3 cards), story chapters, contact form submit → toast "Enquiry received", DB confirmed.
 
 ## Backlog
 - P0: none.
-- P1: Admin view for enquiries (GET /api/enquiries exists, needs UI + auth); WhatsApp order button; real product photography.
-- P2: GLTF bottle model for the hero; scroll-scrubbed 3D (bottle pours as you scroll); multi-language (Tamil) toggle; payment/checkout.
+- P1: WhatsApp order button; real product photography; enquiry email notifications (Resend).
+- P2: GLTF bottle model for the hero; scroll-scrubbed 3D (bottle pours as you scroll); multi-language (Tamil) toggle; payment/checkout; admin analytics.
 
 ## Next Tasks
-1. Admin enquiries dashboard with JWT auth.
-2. WhatsApp deep-link ordering.
-3. Replace primitive glass with a modeled GLTF bottle.
+1. WhatsApp deep-link ordering.
+2. Replace primitive glass with a modeled GLTF bottle.
+3. Email notification to admin on new enquiry.
