@@ -11,6 +11,7 @@ import uuid
 import asyncio
 import json
 import requests
+import razorpay
 import re
 import ipaddress
 import bcrypt
@@ -300,6 +301,15 @@ def get_object(path: str):
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
+
+
+def razorpay_client():
+    if not RAZORPAY_KEY_ID or not RAZORPAY_KEY_SECRET:
+        raise HTTPException(status_code=503, detail="Online payments are not configured yet")
+    return razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
 
 class EnquiryCreate(BaseModel):
     name: str = Field(min_length=2, max_length=80)
@@ -319,6 +329,8 @@ class Enquiry(BaseModel):
     quantity: int
     message: str = ""
     status: str = "new"
+    paid: bool = False
+    amount: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -504,6 +516,93 @@ async def draft_reply(enquiry_id: str, admin=Depends(get_current_admin)):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class PaymentOrderInput(BaseModel):
+    product: str
+    quantity: int = Field(ge=1, le=1000)
+    name: str = Field(min_length=2, max_length=80)
+    phone: str = Field(min_length=7, max_length=15)
+
+
+class PaymentVerifyInput(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+@api_router.post("/payments/order")
+async def create_payment_order(input: PaymentOrderInput):
+    product = next((p for p in PRODUCTS if p["slug"] == input.product), None)
+    if not product:
+        raise HTTPException(status_code=404, detail="Unknown product")
+    client = razorpay_client()
+    total = product["price"] * input.quantity
+    try:
+        order = await asyncio.to_thread(
+            client.order.create,
+            {"amount": total * 100, "currency": "INR", "payment_capture": 1, "receipt": f"kb-{uuid.uuid4().hex[:12]}"},
+        )
+    except Exception as e:
+        logger.error(f"Razorpay order failed: {e}")
+        raise HTTPException(status_code=502, detail="Could not create payment order")
+    await db.payments.insert_one({
+        "id": str(uuid.uuid4()),
+        "razorpay_order_id": order["id"],
+        "product": input.product,
+        "quantity": input.quantity,
+        "amount": total,
+        "name": input.name,
+        "phone": input.phone,
+        "status": "created",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {
+        "order_id": order["id"],
+        "amount": total * 100,
+        "currency": "INR",
+        "key_id": RAZORPAY_KEY_ID,
+        "product_name": product["name"],
+    }
+
+
+@api_router.post("/payments/verify")
+async def verify_payment(input: PaymentVerifyInput):
+    client = razorpay_client()
+    try:
+        await asyncio.to_thread(client.utility.verify_payment_signature, {
+            "razorpay_order_id": input.razorpay_order_id,
+            "razorpay_payment_id": input.razorpay_payment_id,
+            "razorpay_signature": input.razorpay_signature,
+        })
+    except Exception:
+        raise HTTPException(status_code=400, detail="Payment verification failed")
+    payment = await db.payments.find_one({"razorpay_order_id": input.razorpay_order_id}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment order not found")
+    if payment.get("status") != "paid":
+        await db.payments.update_one(
+            {"razorpay_order_id": input.razorpay_order_id},
+            {"$set": {
+                "status": "paid",
+                "razorpay_payment_id": input.razorpay_payment_id,
+                "paid_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+        enquiry = Enquiry(
+            name=payment["name"],
+            phone=payment["phone"],
+            product=payment["product"],
+            quantity=payment["quantity"],
+            message=f"Paid online via Razorpay (payment {input.razorpay_payment_id})",
+            paid=True,
+            amount=payment["amount"],
+        )
+        doc = enquiry.model_dump()
+        doc['created_at'] = doc['created_at'].isoformat()
+        await db.enquiries.insert_one(doc)
+        asyncio.create_task(notify_new_enquiry(enquiry))
+    return {"status": "paid"}
 
 
 app.include_router(api_router)

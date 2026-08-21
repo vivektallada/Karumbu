@@ -375,6 +375,14 @@ export default function Admin() {
                   >
                     {e.status}
                   </span>
+                  {e.paid && (
+                    <span
+                      data-testid={`enquiry-paid-${e.id}`}
+                      className="border border-[#46743a] px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-[#8fbf6a]"
+                    >
+                      Paid ₹{e.amount}
+                    </span>
+                  )}
                 </div>
                 <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-3.5 w-3.5 text-primary" /> {e.phone}

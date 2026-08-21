@@ -60,6 +60,11 @@ User choices: full multi-page website (home, story, products, contact); 3D sugar
 ## Implemented (2026-08-21, round 5)
 - Admin analytics section on /admin (recharts): "What sells — by brew" bar chart (enquiries + bottles per brew, brand colors, dark tooltips) and "Enquiries by week" area chart (weeks starting Monday). Computed client-side from the enquiries list — no new endpoints.
 
+## Implemented (2026-08-21, round 6)
+- Razorpay integration (razorpay python SDK + checkout.js loaded on demand): "Pay Now" on every product card — inline name/phone/quantity form, live total, Razorpay checkout (UPI/cards), POST /api/payments/order creates the Razorpay order (server-side pricing from PRODUCTS), POST /api/payments/verify verifies signature, marks payment paid in db.payments, auto-creates a paid enquiry (paid=true, amount) and fires the admin email alert.
+- Paid orders show a green "Paid ₹X" badge in the admin enquiries board.
+- KEYS PENDING: RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in backend/.env are empty placeholders; endpoints return friendly 503 and the UI shows "payments being set up" toast until the user adds keys from Razorpay Dashboard → Settings → API Keys.
+
 ## Verified
 - curl: all 4 endpoints OK; enquiry round-trip persisted (2 test enquiries in DB).
 - e2e screenshots: hero 3D render, products grid (3 cards), story chapters, contact form submit → toast "Enquiry received", DB confirmed.
