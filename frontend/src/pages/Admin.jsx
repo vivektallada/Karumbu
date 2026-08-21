@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "sonner";
 import { LogOut, Trash2, Phone, CheckCircle2, CircleDot, RefreshCw, ImagePlus, Loader2, Sparkles, Copy, MessageCircle } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid } from "recharts";
 import { mediaUrl } from "@/lib/media";
 import { waLinkTo } from "@/lib/wa";
 import { Reveal } from "@/components/Reveal";
@@ -171,6 +172,38 @@ export default function Admin() {
     bottles: enquiries?.reduce((s, e) => s + e.quantity, 0) ?? 0,
   };
 
+  const brewStats = useMemo(() => {
+    const map = {};
+    (enquiries || []).forEach((e) => {
+      if (!map[e.product]) map[e.product] = { enquiries: 0, bottles: 0 };
+      map[e.product].enquiries += 1;
+      map[e.product].bottles += e.quantity;
+    });
+    return Object.entries(map).map(([slug, v]) => ({
+      name: products.find((p) => p.slug === slug)?.name || (slug === "assorted-case" ? "Assorted Case" : slug),
+      ...v,
+    }));
+  }, [enquiries, products]);
+
+  const weekStats = useMemo(() => {
+    if (!enquiries?.length) return [];
+    const weeks = {};
+    enquiries.forEach((e) => {
+      const d = new Date(e.created_at);
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      monday.setHours(0, 0, 0, 0);
+      const key = monday.toISOString().slice(0, 10);
+      weeks[key] = (weeks[key] || 0) + 1;
+    });
+    return Object.keys(weeks)
+      .sort()
+      .map((k) => ({
+        week: new Date(k).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+        enquiries: weeks[k],
+      }));
+  }, [enquiries]);
+
   return (
     <div data-testid="admin-dashboard" className="min-h-screen px-6 pt-32 pb-24 md:px-16 md:pt-40 lg:px-24">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -210,6 +243,53 @@ export default function Admin() {
           </div>
         ))}
       </div>
+
+      {enquiries?.length > 0 && (
+        <div data-testid="analytics-section" className="mt-12 grid gap-px border border-border bg-border md:grid-cols-2">
+          <div className="bg-muted p-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">What sells — by brew</p>
+            <div className="mt-6 h-64" data-testid="brew-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={brewStats} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid stroke="#213827" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" interval={0} tick={{ fill: "#939E96", fontSize: 11 }} axisLine={{ stroke: "#213827" }} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fill: "#939E96", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#121E15", border: "1px solid #213827", color: "#F4EBE1", fontSize: 12 }}
+                    labelStyle={{ color: "#C86A23" }}
+                    cursor={{ fill: "#1C2F21" }}
+                  />
+                  <Bar dataKey="enquiries" name="Enquiries" fill="#C86A23" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="bottles" name="Bottles" fill="#46743a" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 flex gap-6 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              <span className="flex items-center gap-2"><span className="h-2 w-2 bg-primary" /> Enquiries</span>
+              <span className="flex items-center gap-2"><span className="h-2 w-2 bg-[#46743a]" /> Bottles</span>
+            </div>
+          </div>
+          <div className="bg-muted p-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Enquiries by week</p>
+            <div className="mt-6 h-64" data-testid="week-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={weekStats} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid stroke="#213827" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="week" tick={{ fill: "#939E96", fontSize: 11 }} axisLine={{ stroke: "#213827" }} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fill: "#939E96", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#121E15", border: "1px solid #213827", color: "#F4EBE1", fontSize: 12 }}
+                    labelStyle={{ color: "#C86A23" }}
+                    cursor={{ stroke: "#213827" }}
+                  />
+                  <Area type="monotone" dataKey="enquiries" name="Enquiries" stroke="#C86A23" strokeWidth={2} fill="#C86A23" fillOpacity={0.15} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="mt-4 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Weeks starting Monday</p>
+          </div>
+        </div>
+      )}
 
       <div className="mt-12">
         <p className="text-xs uppercase tracking-[0.3em] text-primary">Product Photos</p>

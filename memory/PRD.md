@@ -57,6 +57,9 @@ User choices: full multi-page website (home, story, products, contact); 3D sugar
 - POST /api/enquiries/{id}/draft-reply (admin-only) streams a warm South Indian host-voiced WhatsApp reply draft over SSE (X-Accel-Buffering: no), with enquiry context + computed price total; WhatsApp-native *bold* formatting.
 - Admin UI: "Draft Reply" button per enquiry, live streaming draft box with cursor, Copy button, "Send on WhatsApp" deep link pre-addressed to the customer's phone with the drafted text (waLinkTo helper).
 
+## Implemented (2026-08-21, round 5)
+- Admin analytics section on /admin (recharts): "What sells — by brew" bar chart (enquiries + bottles per brew, brand colors, dark tooltips) and "Enquiries by week" area chart (weeks starting Monday). Computed client-side from the enquiries list — no new endpoints.
+
 ## Verified
 - curl: all 4 endpoints OK; enquiry round-trip persisted (2 test enquiries in DB).
 - e2e screenshots: hero 3D render, products grid (3 cards), story chapters, contact form submit → toast "Enquiry received", DB confirmed.
