@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 import asyncio
+import requests
 import re
 import ipaddress
 import bcrypt
@@ -257,6 +258,46 @@ async def notify_new_enquiry(enquiry) -> None:
     await send_email(to=NOTIFY_EMAIL, subject=subject, html=html)
 
 
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+APP_NAME = "karumbu"
+storage_key = None
+
+
+def init_storage(force: bool = False):
+    global storage_key
+    if storage_key and not force:
+        return storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
+    resp.raise_for_status()
+    storage_key = resp.json()["storage_key"]
+    return storage_key
+
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    resp = requests.put(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key, "Content-Type": content_type},
+        data=data,
+        timeout=120,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_object(path: str):
+    key = init_storage()
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
+
+
 class EnquiryCreate(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     phone: str = Field(min_length=7, max_length=15)
@@ -285,7 +326,64 @@ async def root():
 
 @api_router.get("/products")
 async def get_products():
-    return PRODUCTS
+    overrides = await db.product_images.find({"is_deleted": False}, {"_id": 0}).to_list(100)
+    by_slug = {o["slug"]: o["storage_path"] for o in overrides}
+    out = []
+    for p in PRODUCTS:
+        item = dict(p)
+        if p["slug"] in by_slug:
+            item["image"] = f"/api/files/{by_slug[p['slug']]}"
+            item["custom_image"] = True
+        out.append(item)
+    return out
+
+
+@api_router.post("/products/{slug}/image")
+async def upload_product_image(slug: str, file: UploadFile = File(...), admin=Depends(get_current_admin)):
+    if slug not in {p["slug"] for p in PRODUCTS}:
+        raise HTTPException(status_code=404, detail="Unknown product")
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP or GIF images allowed")
+    data = await file.read()
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=400, detail="Image must be under 8 MB")
+    ext = file.filename.split(".")[-1].lower() if "." in file.filename else "jpg"
+    path = f"{APP_NAME}/products/{slug}/{uuid.uuid4()}.{ext}"
+    try:
+        result = await asyncio.to_thread(put_object, path, data, file.content_type)
+    except Exception as e:
+        logger.error(f"Storage upload failed: {e}")
+        raise HTTPException(status_code=502, detail="Photo upload failed")
+    await db.product_images.update_many({"slug": slug}, {"$set": {"is_deleted": True}})
+    await db.product_images.insert_one({
+        "id": str(uuid.uuid4()),
+        "slug": slug,
+        "storage_path": result["path"],
+        "original_filename": file.filename,
+        "content_type": file.content_type,
+        "size": result["size"],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"slug": slug, "image": f"/api/files/{result['path']}"}
+
+
+@api_router.delete("/products/{slug}/image")
+async def delete_product_image(slug: str, admin=Depends(get_current_admin)):
+    await db.product_images.update_many({"slug": slug}, {"$set": {"is_deleted": True}})
+    return {"reverted": slug}
+
+
+@api_router.get("/files/{path:path}")
+async def serve_file(path: str):
+    record = await db.product_images.find_one({"storage_path": path, "is_deleted": False})
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        data, content_type = await asyncio.to_thread(get_object, path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="File not found in storage")
+    return Response(content=data, media_type=record.get("content_type", content_type))
 
 
 @api_router.post("/enquiries", response_model=Enquiry)
@@ -368,6 +466,11 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_seed():
     await seed_admin()
+    try:
+        init_storage()
+        logger.info("Object storage initialized")
+    except Exception as e:
+        logger.error(f"Storage init failed: {e}")
 
 
 @app.on_event("shutdown")

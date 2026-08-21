@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { waLink } from "@/lib/wa";
+import { mediaUrl } from "@/lib/media";
 import { MaskedLines } from "@/components/MaskedLines";
 import { Reveal } from "@/components/Reveal";
 
@@ -49,7 +50,7 @@ export default function Products() {
             >
               <div className="spotlight-frame overflow-hidden">
                 <img
-                  src={p.image}
+                  src={mediaUrl(p.image)}
                   alt={p.name}
                   data-testid={`product-image-${p.slug}`}
                   className="h-64 w-full object-cover transition-transform duration-700 group-hover:scale-105"

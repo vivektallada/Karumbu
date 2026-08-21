@@ -46,6 +46,12 @@ User choices: full multi-page website (home, story, products, contact); 3D sugar
 - Pour-on-scroll hero: copper jug hovers over the glass, tilts and pours a panakam stream as the visitor scrolls the first viewport; liquid level rises 25%→100%, ice cubes surface near full, condensation appears at full, jug fades out, camera dollies in. Driven by scrollRef progress from window scroll.
 - Contact details updated to real ones: karumbu09@gmail.com, +91 91217 44996.
 
+## Implemented (2026-08-21, round 3)
+- File & media storage: Emergent object storage via integration proxy (init at startup, EMERGENT_LLM_KEY auth, app prefix "karumbu/").
+- Admin product photo uploads: "Product Photos" section on /admin — per-product preview (custom vs stock), upload (JPEG/PNG/WebP/GIF, max 8 MB), remove/revert to stock.
+- Backend: POST/DELETE /api/products/{slug}/image (admin-only), GET /api/files/{path} public serving with soft-delete checks, GET /api/products merges uploaded images over stock URLs (custom_image flag). product_images MongoDB collection with is_deleted soft-delete.
+- Uploaded photos power Products page cards and Home spotlight thumbnails automatically (mediaUrl helper prefixes backend URL).
+
 ## Verified
 - curl: all 4 endpoints OK; enquiry round-trip persisted (2 test enquiries in DB).
 - e2e screenshots: hero 3D render, products grid (3 cards), story chapters, contact form submit → toast "Enquiry received", DB confirmed.

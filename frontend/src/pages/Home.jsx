@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { ArrowRight, ArrowDown } from "lucide-react";
 import { CaneScene } from "@/components/CaneScene";
+import { mediaUrl } from "@/lib/media";
 import { MaskedLines } from "@/components/MaskedLines";
 import { Reveal } from "@/components/Reveal";
 import { Marquee } from "@/components/Marquee";
@@ -162,10 +163,18 @@ export default function Home() {
                   data-testid={`product-card-${p.slug}`}
                   className="group flex flex-col gap-6 bg-muted p-8 transition-colors hover:bg-secondary md:flex-row md:items-center md:justify-between"
                 >
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-primary">{p.badge}</p>
-                    <h3 className="mt-2 font-serif text-3xl font-light text-foreground">{p.name}</h3>
-                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">{p.tagline}</p>
+                  <div className="flex items-center gap-6">
+                    <img
+                      src={mediaUrl(p.image)}
+                      alt={p.name}
+                      data-testid={`spotlight-thumb-${p.slug}`}
+                      className="hidden h-24 w-24 shrink-0 border border-border object-cover sm:block"
+                    />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.3em] text-primary">{p.badge}</p>
+                      <h3 className="mt-2 font-serif text-3xl font-light text-foreground">{p.name}</h3>
+                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">{p.tagline}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-8">
                     <div className="text-right">
