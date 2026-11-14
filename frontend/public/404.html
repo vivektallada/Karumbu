@@ -1,9 +1,11 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>KARUMBU</title>
+
     <script>
       const segmentCount = 1;
       const location = window.location;
@@ -14,14 +16,15 @@
 
       location.replace(
         location.origin +
-          "/karumbu/" +
-          (route ? route : "") +
+          "/Karumbu/" +
+          route +
           query +
           hash
       );
     </script>
   </head>
+
   <body>
-    Redirecting to KARUMBU...
+    <p>Redirecting to KARUMBU...</p>
   </body>
 </html>

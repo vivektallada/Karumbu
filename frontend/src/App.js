@@ -38,7 +38,7 @@ function App() {
 
   return (
     <div className="App min-h-screen bg-background font-sans text-foreground antialiased">
-      <BrowserRouter basename="/karumbu">
+      <BrowserRouter basename="/Karumbu">
         <ScrollToTop />
         <Navbar />
         <main>
