@@ -25,9 +25,8 @@ export default function Account() {
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
 
-  const token = () => localStorage.getItem("karumbu_customer_token");
-  const headers = () => ({ Authorization: `Bearer ${token()}` });
-
+  const token = useCallback(() => localStorage.getItem("karumbu_customer_token"),[]);
+const headers = useCallback(() => ({ Authorization: `Bearer ${token()}` }),[token]);
   const loadOrders = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API}/my/orders`, { headers: headers() });
@@ -35,7 +34,7 @@ export default function Account() {
     } catch {
       setOrders([]);
     }
-  }, []);
+  }, [headers]);
 
   useEffect(() => {
     axios.get(`${API}/products`).then((r) => setProducts(r.data)).catch(() => {});
@@ -54,7 +53,7 @@ export default function Account() {
         localStorage.removeItem("karumbu_customer_user");
         setUser(null);
       });
-  }, [loadOrders]);
+  }, [loadOrders, token, headers]);
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
